@@ -4,44 +4,50 @@ from vnstock import stock_historical_data
 from supabase import create_client, Client
 from datetime import datetime, timedelta
 
-# CHỈ SỬA ĐOẠN NÀY: Lấy thông tin bảo mật từ hệ thống của GitHub chứ không ghi đè chuỗi ký tự vào đây
+# 1. Cấu hình kết nối
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
-
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-# (Giữ nguyên toàn bộ phần code lấy dữ liệu và insert ở phía dưới...)
+# 2. Danh sách 30 mã cổ phiếu VN30 (Cập nhật tĩnh)
+vn30_tickers = [
+    "ACB", "BCM", "BID", "BVH", "CTG", "FPT", "GAS", "GVR", "HDB", "HPG",
+    "MBB", "MSN", "MWG", "PLX", "POW", "SAB", "SHB", "SSB", "SSI", "STB",
+    "TCB", "TPB", "VCB", "VHM", "VIB", "VIC", "VJC", "VNM", "VPB", "VRE"
+]
 
-# Danh sách cổ phiếu muốn theo dõi
-tickers = ['FPT', 'MBB', 'VNM']
-
-# 2. EXTRACT: Lấy dữ liệu ngày hôm qua (hoặc dải ngày tùy ý)
 today = datetime.now()
 yesterday = (today - timedelta(days=1)).strftime('%Y-%m-%d')
 
-for ticker in tickers:
-    # Lấy dữ liệu từ vnstock
-    df = stock_historical_data(symbol=ticker, start_date=yesterday, end_date=yesterday, resolution='1D')
-    
-    if not df.empty:
-        # 3. TRANSFORM: Xử lý và làm sạch dữ liệu
-        close_price = float(df['close'].iloc[0])
+# Khởi tạo một "chiếc giỏ" rỗng (List) để gom dữ liệu
+data_payloads = []
+
+# 3. EXTRACT: Vòng lặp lấy dữ liệu và bỏ vào giỏ
+print(f"Đang lấy dữ liệu ngày {yesterday}...")
+for ticker in vn30_tickers:
+    try:
+        df = stock_historical_data(symbol=ticker, start_date=yesterday, end_date=yesterday, resolution='1D')
         
-        # Công thức tính Return (Giả sử bạn cần query thêm giá ngày t-1 để tính, 
-        # ở đây lấy ví dụ tính sẵn hoặc có thể để SQL tính sau)
-        # Tỷ suất sinh lời: R_t = (P_t - P_{t-1}) / P_{t-1}
-        
-        # Chuẩn bị gói dữ liệu (Payload)
-        data_payload = {
-            "ticker": ticker,
-            "trade_date": yesterday,
-            "close_price": close_price,
-            "daily_return": 0.0 # Tạm gán 0, ta sẽ dùng hàm SQL Window function để tính sau
-        }
-        
-        # 4. LOAD: Đẩy dữ liệu vào Supabase
-        try:
-            data, count = supabase.table('vn30_daily_prices').insert(data_payload).execute()
-            print(f"✅ Đã cập nhật thành công {ticker} ngày {yesterday}")
-        except Exception as e:
-            print(f"⚠️ Lỗi khi cập nhật {ticker}: {e}")
+        if not df.empty:
+            close_price = float(df['close'].iloc[0])
+            # Bỏ dữ liệu vào giỏ thay vì đẩy lên ngay
+            data_payloads.append({
+                "ticker": ticker,
+                "trade_date": yesterday,
+                "close_price": close_price,
+                "daily_return": 0.0
+            })
+    except Exception as e:
+        # Lỗi 1 mã thì bỏ qua, chạy tiếp mã khác (chống sập hệ thống)
+        print(f"⚠️ Không lấy được dữ liệu {ticker}: {e}")
+
+# 4. LOAD (Batch Insert): Đẩy toàn bộ giỏ lên Supabase trong 1 câu lệnh
+if data_payloads: # Nếu giỏ có đồ
+    try:
+        # Hàm insert() của Supabase hỗ trợ nhận 1 list chứa nhiều dòng dữ liệu
+        data, count = supabase.table('vn30_daily_prices').insert(data_payloads).execute()
+        print(f"✅ Đã lưu thành công {len(data_payloads)} mã VN30 vào Database!")
+    except Exception as e:
+        print(f"⚠️ Lỗi khi đẩy lên Database: {e}")
+else:
+    print(f"⚠️ Ngày {yesterday} trống rỗng (có thể là cuối tuần hoặc ngày nghỉ lễ).")

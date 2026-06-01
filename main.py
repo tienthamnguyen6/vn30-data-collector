@@ -10,7 +10,9 @@ SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # Tạm thời chạy 3 mã để test biểu đồ trước
-tickers = ['FPT', 'MBB', 'VNM']
+tickers = ['ACB', 'BCM', 'BID', 'BVH', 'CTG', 'FPT', 'GAS', 'GVR', 'HDB', 'HPG', 
+    'MBB', 'MSN', 'MWG', 'PLX', 'POW', 'SAB', 'SHB', 'SSB', 'SSI', 'STB', 
+    'TCB', 'TPB', 'VCB', 'VHM', 'VIB', 'VIC', 'VJC', 'VNM', 'VPB', 'VRE']
 
 # --- ĐÃ SỬA LẠI LOGIC THỜI GIAN ---
 # Lấy chính xác giờ Việt Nam (UTC+7) để máy chủ GitHub không bị lệch ngày

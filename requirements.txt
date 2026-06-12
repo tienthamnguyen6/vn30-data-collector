@@ -1,2 +1,6 @@
-vnstock
+pandas
+vnstock==0.2.8.5
+supabase
+plotly
+beautifulsoup4
 requests

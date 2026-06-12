@@ -3,25 +3,26 @@ name: Daily VN30 ETL Pipeline
 on:
   schedule:
     - cron: '0 9 * * 1-5'
-  workflow_dispatch: 
+  workflow_dispatch:
 
 jobs:
   build:
-    runs-on: ubuntu-latest 
+    runs-on: ubuntu-latest
 
     steps:
       - name: Bước 1 - Tải code từ Github về máy ảo
         uses: actions/checkout@v4
-        
+
       - name: Bước 2 - Cài đặt ngôn ngữ Python cho máy ảo
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
-          
+
       - name: Bước 3 - Cài đặt các thư viện cần thiết
         run: |
-          pip install pandas vnstock==0.2.8.5 supabase plotly beautifulsoup4
-          
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
       - name: Bước 4 - Chạy file Python và truyền khóa bảo mật vào
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
